@@ -31,7 +31,7 @@ func init() {
 }
 
 var (
-	callChangeStreamFailures = statz.NewCounter1[string]("rpc.webrtc/call_change_stream_failures", statz.MetricConfig{
+	CallChangeStreamFailures = statz.NewCounter1[string]("rpc.webrtc/call_change_stream_failures", statz.MetricConfig{
 		Description: "The number of times making a change stream fails.",
 		Unit:        units.Dimensionless,
 		Labels: []statz.Label{
@@ -39,7 +39,7 @@ var (
 		},
 	})
 
-	callAnswererTooBusy = statz.NewCounter1[string]("rpc.webrtc/call_answerer_too_busy", statz.MetricConfig{
+	CallAnswererTooBusy = statz.NewCounter1[string]("rpc.webrtc/call_answerer_too_busy", statz.MetricConfig{
 		Description: "The number of times all answerers were too busy to handle a new call.",
 		Unit:        units.Dimensionless,
 		Labels: []statz.Label{
@@ -47,7 +47,7 @@ var (
 		},
 	})
 
-	exchangeChannelAtCapacity = statz.NewCounter1[string]("rpc.webrtc/exchange_channel_at_capacity", statz.MetricConfig{
+	ExchangeChannelAtCapacity = statz.NewCounter1[string]("rpc.webrtc/exchange_channel_at_capacity", statz.MetricConfig{
 		Description: "The number of times a call exchange has it max channel capacity.",
 		Unit:        units.Dimensionless,
 		Labels: []statz.Label{
@@ -55,7 +55,7 @@ var (
 		},
 	})
 
-	activeHosts = statz.NewGauge1[string]("rpc.webrtc/active_hosts", statz.MetricConfig{
+	ActiveHosts = statz.NewGauge1[string]("rpc.webrtc/active_hosts", statz.MetricConfig{
 		Description: "The number of hosts waiting for a call to come in or processing a call.",
 		Unit:        units.Dimensionless,
 		Labels: []statz.Label{
@@ -463,7 +463,7 @@ func (queue *mongoDBWebRTCCallQueue) changeStreamManager() {
 			},
 		}, csOpts)
 		if err != nil {
-			callChangeStreamFailures.Inc(queue.operatorID)
+			CallChangeStreamFailures.Inc(queue.operatorID)
 			queue.csManagerSeq.Add(1)
 			queue.logger.Errorw("failed to create calls change stream", "error", err)
 			continue
@@ -475,7 +475,7 @@ func (queue *mongoDBWebRTCCallQueue) changeStreamManager() {
 		queue.csStateMu.Lock()
 		queue.csTrackingHosts = utils.NewStringSet(hosts...)
 		queue.csStateMu.Unlock()
-		activeHosts.Set(queue.operatorID, int64(len(hosts)))
+		ActiveHosts.Set(queue.operatorID, int64(len(hosts)))
 
 		nextCSCtx, nextCSCtxCancel := context.WithCancel(queue.cancelCtx)
 		csNext, resumeToken, clusterTime := mongoutils.ChangeStreamBackground(nextCSCtx, cs)
@@ -596,7 +596,7 @@ func (queue *mongoDBWebRTCCallQueue) processNextSubscriptionEvent(next mongoutil
 					return
 				}
 			}
-			callAnswererTooBusy.Inc(queue.operatorID)
+			CallAnswererTooBusy.Inc(queue.operatorID)
 			queue.logger.Warnw(
 				"all answerers for host too busy to answer call",
 				"id", callResp.ID,
@@ -622,7 +622,7 @@ func (queue *mongoDBWebRTCCallQueue) processNextSubscriptionEvent(next mongoutil
 				select {
 				case exchangeChan.Chan <- event:
 				default:
-					exchangeChannelAtCapacity.Inc(queue.operatorID)
+					ExchangeChannelAtCapacity.Inc(queue.operatorID)
 					queue.logger.Debugw("failed to notify exchange channel of call update",
 						"id", callResp.ID, "host", callResp.Host, "side", exchangeChan.Side)
 				}
